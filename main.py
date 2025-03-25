@@ -11,13 +11,13 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import auth
 import schemas
 import crud
 from db.engine import SessionLocal
-from auth import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
+from auth import get_current_user, verify_password, create_access_token
 
+from db.models import DBUsers
 
 app = FastAPI(
     title="Book Management System",
@@ -28,13 +28,12 @@ app = FastAPI(
     openapi_url="/myopenapi.json"
 )
 
+router = APIRouter()
+
 
 @app.get("/")
 def root():
     return {"message": "Welcome to the Book Management System"}
-
-
-router = APIRouter()
 
 
 def get_db():
@@ -67,9 +66,7 @@ def retrieve_all_books(
             year_from=year_from,
             year_to=year_to,
             skip=skip,
-            limit=limit,
-            sort_by=sort_by,
-            order=order
+            limit=limit
         )
         return books
     except Exception as e:
@@ -90,29 +87,17 @@ def create_new_book(
 
 @router.get("/books/{book_id}", response_model=schemas.Book)
 def retrieve_book_by_id(book_id: int, db: Session = Depends(get_db)):
-    try:
-        book = crud.get_book_by_id(db, book_id)
-        if not book:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return book
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred while retrieving the book: {str(e)}")
+    book = crud.get_book_by_id(db, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return book
 
 
 @router.put("/books/{book_id}", response_model=schemas.Book)
-def update_book(
-    book_id: int,
-    book: schemas.BookCreate,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-    try:
-        updated_book = crud.update_book(db, book_id, book)
-        if not updated_book:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return updated_book
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred while updating the book: {str(e)}")
+def update_book(book_id: int, book: schemas.BookUpdate, db: Session = Depends(get_db)):
+    book_data = book.dict(exclude_unset=True)
+    updated_book = crud.update_book(db, book_id, book_data)
+    return updated_book
 
 
 @router.delete("/books/{book_id}", response_model=dict)
@@ -179,12 +164,15 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db, user)
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/users/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = crud.authenticate_user(db, form_data.username, form_data.password)
+    user = db.query(DBUsers).filter(DBUsers.username == form_data.username).first()
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token = auth.create_access_token(data={"sub": user.username})
+        raise HTTPException(status_code=400, detail="User not found")
+
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
 

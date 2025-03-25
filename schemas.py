@@ -1,6 +1,12 @@
 import datetime
+from typing import Optional
+from enum import Enum
 from pydantic import BaseModel, validator
-from db.models import Genres
+
+
+class Genres(str, Enum):
+    FICTION = "FICTION"
+    NONFICTION = "NONFICTION"
 
 
 class AuthorBase(BaseModel):
@@ -23,7 +29,6 @@ class Author(AuthorBase):
 class BookBase(BaseModel):
     title: str
     published_year: int
-    author: AuthorBase
     genre: Genres
 
     @validator('title')
@@ -41,7 +46,23 @@ class BookBase(BaseModel):
 
 
 class BookCreate(BookBase):
-    pass
+    title: str
+    published_year: int
+    author_name: str
+    genre: Genres
+
+    @validator('title')
+    def title_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @validator('published_year')
+    def valid_published_year(cls, v):
+        current_year = datetime.datetime.now().year
+        if v < 1800 or v > current_year:
+            raise ValueError(f"The published year must be from 1800 to {current_year}")
+        return v
 
 
 class Book(BookBase):
@@ -50,6 +71,27 @@ class Book(BookBase):
 
     class Config:
         from_attributes = True
+
+
+class BookUpdate(BaseModel):
+    title: Optional[str] = None
+    published_year: Optional[int] = None
+    genre: Optional[Genres] = None
+    author_name: Optional[str] = None
+
+    @validator('title')
+    def title_must_not_be_empty(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @validator('published_year')
+    def valid_published_year(cls, v):
+        if v is not None:
+            current_year = datetime.datetime.now().year
+            if v < 1800 or v > current_year:
+                raise ValueError(f"The published year must be from 1800 to {current_year}")
+        return v
 
 
 class UserCreate(BaseModel):

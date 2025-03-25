@@ -20,17 +20,17 @@ class DBAuthors(Base):
     __tablename__ = 'authors'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    books = relationship("DBBooks", back_populates="author")
 
 
 class DBBooks(Base):
     __tablename__ = 'books'
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
-    author = Column(String(255), nullable=False)
     genre = Column(Enum(Genres))
     published_year = Column(Integer)
-    authors_id = Column(Integer, ForeignKey('authors.id'))
-    authors = relationship(DBAuthors)
+    author_id = Column(Integer, ForeignKey('authors.id'))
+    author = relationship(DBAuthors)
 
     @validates('published_year')
     def validate_published_year(self, key, value):
@@ -43,5 +43,5 @@ class DBBooks(Base):
 class DBUsers(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, index=True)
     hashed_password = Column(String(255), nullable=False)
