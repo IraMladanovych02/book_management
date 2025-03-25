@@ -130,4 +130,10 @@ Below are some core endpoints defined in `main.py`:
 
 ---
 
+What`s to improve in this code:
+1. Break down the logic of large files and numerous lines of code into smaller, more manageable modules.
+2. Cover the code with integration tests
+
+
+
 **Enjoy using the Book Management System!**
