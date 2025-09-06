@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from db import models
 from schemas import BookCreate, UserCreate
@@ -82,7 +82,10 @@ def get_all_books(db: Session):
     except Exception as e:
         db.rollback()
         logger.error("Error retrieving books: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving books: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving books: {str(e)}"
+        )
 
 
 def get_filtered_books(db: Session, title: str, author: str, genre: str, year_from: int, year_to: int, skip: int, limit: int):
@@ -160,7 +163,10 @@ def create_book(db: Session, book):
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating book: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error creating book: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating book: {str(e)}"
+        )
 
 
 def update_book(db: Session, book_id: int, book):
@@ -222,7 +228,10 @@ def update_book(db: Session, book_id: int, book):
         db.rollback()
         logger.error(f"Error updating book with ID {book_id}: {str(e)}", exc_info=True)
 
-        raise HTTPException(status_code=500, detail=f"Error updating book: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating book: {str(e)}"
+        )
 
 
 def get_book_by_id(db: Session, book_id: int):
@@ -249,7 +258,10 @@ def get_book_by_id(db: Session, book_id: int):
     except Exception as e:
         db.rollback()
         logger.error("Error retrieving book by ID %d: %s", book_id, str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error retrieving book by id: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving book by id: {str(e)}"
+        )
 
 
 def delete_book(db: Session, book_id: int):
@@ -276,4 +288,51 @@ def delete_book(db: Session, book_id: int):
     except Exception as e:
         db.rollback()
         logger.error("Error deleting book with ID %d: %s", book_id, str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error deleting book: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting book: {str(e)}"
+        )
+
+
+def get_book_counts_by_genre(db: Session):
+    """
+    Retrieves the count of books for each genre, grouped and ordered by genre.
+
+    Covers:
+    - Orders and groups data from a database using query language
+    - Uses database data aggregation techniques to optimise data analysis
+
+    Parameters:
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        list[dict]: A list of dictionaries, where each dictionary contains
+                    'genre' and 'book_count'.
+
+    Raises:
+        HTTPException: If an error occurs during retrieval.
+    """
+    logger.debug("Attempting to retrieve book counts by genre.")
+    try:
+        query = text("""
+            SELECT
+                genre,
+                COUNT(id) AS book_count
+            FROM
+                books
+            GROUP BY
+                genre
+            ORDER BY
+                genre;
+        """)
+        result = db.execute(query)
+        rows = result.fetchall()
+        logger.info("Successfully retrieved book counts by genre: %d genres found.", len(rows))
+        return [dict(row) for row in rows]
+    except Exception as e:
+        db.rollback()
+        logger.error("Error retrieving book counts by genre: %s", str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving book counts by genre: {str(e)}"
+        )
